@@ -1,5 +1,7 @@
 package ex1
 
+import scala.annotation.tailrec
+
 // List as a pure interface
 enum List[A]:
   case ::(h: A, t: List[A])
@@ -51,25 +53,32 @@ enum List[A]:
   def length: Int =
     foldLeft(0)((b, _) => b + 1)
 
-  /*def foldRightWithIndex[B](init: B)(index: Int)(op: (A, B) => B): (B, Int) = this match
-    case h :: t => t.foldRightWithIndex(init)(index + 1)(op) // op(h, t.foldRightWithIndex(init)(index + 1)(op))
+  /*def foldRightWithIndex[B](init: B)(index: Int)(op: ((A, Int), (B, Int)) => (B, Int)): (B, Int) = this match
+    case h :: t => op((h, index), t.foldRightWithIndex(init)(index + 1)(op))
     case _ => (init, index)*/
 
   def zipWithIndex: List[(A, Int)] =
     foldRight(Nil())((a, b) => (a, this.length - b.length - 1) :: b)
-    // foldRightWithIndex(Nil())(0)((a, b) => (a :: b) :: (Nil(), 0))
+    // foldRightWithIndex(Nil())(0)((a: (A, Int), b: List[(A, Int)]) => a :: b)
 
   def partition(predicate: A => Boolean): (List[A], List[A]) =
     (foldRight(Nil())((a, b) => if predicate(a) then a :: b else b),
       foldRight(Nil())((a, b) => if !predicate(a) then a :: b else b))
 
-  def span(predicate: A => Boolean): (List[A], List[A]) = ???
+  def span(predicate: A => Boolean): (List[A], List[A]) =
+    extension (list: List[A])
+      @tailrec
+      private def _span(predicate: A => Boolean)(left: List[A]): (List[A], List[A]) = list match
+        case h :: t if predicate(h) => t._span(predicate)(h :: left)
+        case _ => (left, list)
+    this._span(predicate)(Nil())
 
   def takeRight(n: Int): List[A] =
     foldRight(Nil())((a, b) => if b.length < n then a :: b else b)
 
   def collect(predicate: PartialFunction[A, A]): List[A] =
-    foldRight(Nil())((a, b) => predicate.applyOrElse(predicate(a), predicate) :: b)
+    foldRight(Nil())((a, b) => if predicate isDefinedAt a  then predicate(a) :: b else b)
+
 // Factories
 object List:
 
@@ -89,8 +98,8 @@ object Test extends App:
   println(reference.length) // 4
   println(reference.zipWithIndex) // List((1, 0), (2, 1), (3, 2), (4, 3))
   println(reference.partition(_ % 2 == 0)) // (List(2, 4), List(1, 3))
-//  println(reference.span(_ % 2 != 0)) // (List(1), List(2, 3, 4))
-//  println(reference.span(_ < 3)) // (List(1, 2), List(3, 4))
+  println(reference.span(_ % 2 != 0)) // (List(1), List(2, 3, 4))
+  println(reference.span(_ < 3)) // (List(1, 2), List(3, 4))
   println(reference.reduce(_ + _)) // 10
   println(List(10).reduce(_ + _)) // 10
   println(reference.takeRight(3)) // List(2, 3, 4)
