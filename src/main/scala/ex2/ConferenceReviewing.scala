@@ -33,7 +33,7 @@ object ConferenceReviewing:
         Map(RELEVANCE -> relevance, SIGNIFICANCE -> significance, CONFIDENCE -> confidence, FINAL -> fin))
 
     override def orderedScores(article: Int, question: Question): List[Int] =
-      _reviews.filter(_._1 == article).map((_, m) => m(question)).sorted // can be improved with foldRight
+      _reviews.filter(_._1 == article).map((_, m) => m(question)).sorted // can be improved with collect
 
     extension (list: List[Int])
       private def avg: Double = list.map(_.toDouble).sum./(list.size)
@@ -44,6 +44,8 @@ object ConferenceReviewing:
     override def acceptedArticles(): Set[Int] =
       _reviews.filter((a, m) => averageFinalScore(a) > 5 && orderedScores(a, RELEVANCE).exists(_ >= 8)).map(_._1).toSet
 
-    override def sortedAcceptedArticles(): List[Pair[Int, Double]] = ???
+    override def sortedAcceptedArticles(): List[Pair[Int, Double]] =
+      _reviews.filter((a, _) => acceptedArticles().contains(a)).map((a, _) => Pair(a, averageFinalScore(a))).distinct // can be improved with collect
 
     override def averageWeightedFinalScoreMap(): Map[Int, Double] = ???
+      //_reviews.groupBy().map((a, m) => Pair(a, m.get(CONFIDENCE).get * m.get(FINAL).get / 10))
