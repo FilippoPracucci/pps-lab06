@@ -24,7 +24,7 @@ object ConferenceReviewing:
 
     override def reviews: List[Pair[Int, Map[Question, Int]]] = _reviews
     override def reviews_=(review: Pair[Int, Map[Question, Int]]): Unit = _reviews = review :: _reviews
-    
+
     override def loadReview(article: Int, scores: Map[Question, Int]): Unit =
       reviews = Pair(article, scores)
 
@@ -33,21 +33,23 @@ object ConferenceReviewing:
         Map(RELEVANCE -> relevance, SIGNIFICANCE -> significance, CONFIDENCE -> confidence, FINAL -> fin))
 
     override def orderedScores(article: Int, question: Question): List[Int] =
-      _reviews.filter(_._1 == article).map(p => p.y(question)).sorted // can be improved with collect
+      _reviews.collect { case Pair(a, m) if a == article => m(question) }.sorted
 
     extension (list: List[Int])
-      private def avg: Double = list.map(_.toDouble).sum./(list.size)
+      private def avg: Double =
+        list.map(_.toDouble).sum./(list.size)
     extension (list: List[Pair[Int, Map[Question, Int]]])
-      private def avgWeighted: Double = list.map(p => p.y(CONFIDENCE).toDouble * p.y(FINAL).toDouble / 10).sum / list.size
+      private def avgWeighted: Double =
+        list.map(p => p.y(CONFIDENCE).toDouble * p.y(FINAL).toDouble / 10).sum./(list.size)
 
     override def averageFinalScore(article: Int): Double =
-      _reviews.filter(_._1 == article).map(_._2(FINAL)).avg
+      _reviews.collect { case Pair(a, m) if a == article => m(FINAL) }.avg
 
     override def acceptedArticles(): Set[Int] =
-      _reviews.filter(p => averageFinalScore(p.x) > 5 && orderedScores(p.x, RELEVANCE).exists(_ >= 8)).map(_._1).toSet
+      _reviews.collect { case Pair(a, _) if averageFinalScore(a) > 5 && orderedScores(a, RELEVANCE).exists(_ >= 8) => a }.toSet
 
     override def sortedAcceptedArticles(): List[Pair[Int, Double]] =
-      _reviews.filter(p => acceptedArticles().contains(p.x)).map(p => Pair(p.x, averageFinalScore(p.x))).distinct // can be improved with collect
+      _reviews.collect{ case Pair(a, _) if acceptedArticles().contains(a) => Pair(a, averageFinalScore(a)) }.distinct
 
     override def averageWeightedFinalScoreMap(): Map[Int, Double] =
       _reviews.groupBy(_._1).map((a, l) => (a, l.avgWeighted)).toMap()
