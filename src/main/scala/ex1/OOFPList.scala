@@ -32,6 +32,10 @@ enum List[A]:
     case h :: t => op(h, t.foldRight(init)(op))
     case _ => init
 
+  def foldRightStop[B](init: B)(predicate: A => Boolean)(op: (A, B) => B): B = this match
+    case h :: t if predicate(h) => op(h, t.foldRightStop(init)(predicate)(op))
+    case _ => init
+
   def append(list: List[A]): List[A] =
     foldRight(list)(_ :: _)
 
@@ -54,25 +58,17 @@ enum List[A]:
     foldLeft(0)((b, _) => b + 1)
 
   def zipWithIndex: List[(A, Int)] =
-    // foldRight(Nil())((a, b) => (a, this.length - b.length - 1) :: b) --> O(n^2)
-    foldRight((Nil(), this.length - 1))((a, b: (List[(A, Int)], Int)) => ((a, b._2) :: b._1, b._2 - 1))._1 // O(n)
+    foldRight((Nil(), this.length - 1))((a, b: (List[(A, Int)], Int)) => ((a, b._2) :: b._1, b._2 - 1))._1
 
   def partition(predicate: A => Boolean): (List[A], List[A]) =
-    /*(foldRight(Nil())((a, b) => if predicate(a) then a :: b else b),
-      foldRight(Nil())((a, b) => if !predicate(a) then a :: b else b))*/
     (filter(predicate), filter(!predicate(_)))
 
   def span(predicate: A => Boolean): (List[A], List[A]) =
-    extension (list: List[A])
-      @tailrec
-      private def _span(predicate: A => Boolean)(left: List[A]): (List[A], List[A]) = list match
-        case h :: t if predicate(h) => t._span(predicate)(h :: left)
-        case _ => (left, list)
-    this._span(predicate)(Nil())
+    val left = foldRightStop(Nil())(predicate)((a, b: List[A]) => a :: b)
+    (left, takeRight(this.length - left.length))
 
   def takeRight(n: Int): List[A] =
-    // foldRight(Nil())((a, b) => if b.length < n then a :: b else b) --> O(n^2)
-    foldRight((Nil(), 0))((a, b: (List[A], Int)) => if b._2 < n then (a :: b._1, b._2 + 1) else b)._1 // O(n)
+    foldRight((Nil(), 0))((a, b: (List[A], Int)) => if b._2 < n then (a :: b._1, b._2 + 1) else b)._1
 
   def collect(predicate: PartialFunction[A, A]): List[A] =
     foldRight(Nil())((a, b) => if predicate isDefinedAt a  then predicate(a) :: b else b)
